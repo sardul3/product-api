@@ -1,46 +1,40 @@
 package com.example.productapi.service;
 
 import com.example.productapi.model.Product;
+import com.example.productapi.repository.ProductRepository;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 
 @Service
+@RequiredArgsConstructor
 public class ProductService {
-    private List<Product> products = new ArrayList<>();
-    private long nextId = 1;
+    private final ProductRepository productRepository;
 
     public List<Product> getAllProducts() {
-        return new ArrayList<>(products);
+        return productRepository.findAll();
     }
 
-    public Optional<Product> getProductById(Long id) {
-        return products.stream()
-                .filter(product -> product.getId().equals(id))
-                .findFirst();
+    public Product getProductById(Long id) {
+        return productRepository.findById(id)
+            .orElseThrow(() -> new RuntimeException("Product not found"));
     }
 
     public Product createProduct(Product product) {
-        product.setId(nextId++);
-        products.add(product);
-        return product;
+        return productRepository.save(product);
     }
 
     public Product updateProduct(Long id, Product productDetails) {
-        for (int i = 0; i < products.size(); i++) {
-            Product product = products.get(i);
-            if (product.getId().equals(id)) {
-                productDetails.setId(id);
-                products.set(i, productDetails);
-                return productDetails;
-            }
-        }
-        throw new RuntimeException("Product not found");
+        Product product = getProductById(id);
+        product.setName(productDetails.getName());
+        product.setDescription(productDetails.getDescription());
+        product.setPrice(productDetails.getPrice());
+        return productRepository.save(product);
     }
 
     public void deleteProduct(Long id) {
-        products.removeIf(product -> product.getId().equals(id));
+        Product product = getProductById(id);
+        productRepository.delete(product);
     }
 }
