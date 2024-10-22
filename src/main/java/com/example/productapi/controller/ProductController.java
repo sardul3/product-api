@@ -5,6 +5,8 @@ import com.example.productapi.model.Product;
 import com.example.productapi.service.ProductService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -15,53 +17,54 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/api/products")
 @RequiredArgsConstructor
+@Slf4j
 public class ProductController {
     private final ProductService productService;
 
     @GetMapping
     public ResponseEntity<List<ProductDto>> getAllProducts() {
+        log.info("Received request to get all products");
         List<ProductDto> products = productService.getAllProducts().stream()
                 .map(this::convertToDTO)
                 .collect(Collectors.toList());
+        log.info("Returning {} products", products.size());
         return ResponseEntity.ok(products);
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<ProductDto> getProductById(@PathVariable Long id) {
-        try {
-            Product product = productService.getProductById(id);
-            return ResponseEntity.ok(convertToDTO(product));
-        } catch (RuntimeException e) {
-            return ResponseEntity.notFound().build();
-        }
+    public ResponseEntity<ProductDto> getProductById(@PathVariable("id") Long id) {
+        log.info("Received request to get product with id: {}", id);
+        Product product = productService.getProductById(id);
+        ProductDto productDto = convertToDTO(product);
+        log.info("Returning product with id: {}", id);
+        return ResponseEntity.ok(productDto);
     }
 
     @PostMapping
-    public ResponseEntity<ProductDto> createProduct(@Valid @RequestBody ProductDto productDTO) {
+    public ResponseEntity<Product> createProduct(@Valid @RequestBody ProductDto productDTO) {
+        log.info("Received request to create new product: {}", productDTO.getName());
         Product product = convertToEntity(productDTO);
         Product createdProduct = productService.createProduct(product);
-        return ResponseEntity.status(HttpStatus.CREATED).body(convertToDTO(createdProduct));
+        log.info("Created new product with id: {}", createdProduct.getId());
+        return ResponseEntity.status(HttpStatus.CREATED).body(createdProduct);
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<ProductDto> updateProduct(@PathVariable Long id, @Valid @RequestBody ProductDto productDTO) {
-        try {
-            Product product = convertToEntity(productDTO);
-            Product updatedProduct = productService.updateProduct(id, product);
-            return ResponseEntity.ok(convertToDTO(updatedProduct));
-        } catch (RuntimeException e) {
-            return ResponseEntity.notFound().build();
-        }
+    public ResponseEntity<ProductDto> updateProduct(@PathVariable("id") Long id, @Valid @RequestBody ProductDto productDTO) {
+        log.info("Received request to update product with id: {}", id);
+        Product product = convertToEntity(productDTO);
+        Product updatedProduct = productService.updateProduct(id, product);
+        ProductDto updatedProductDto = convertToDTO(updatedProduct);
+        log.info("Updated product with id: {}", id);
+        return ResponseEntity.ok(updatedProductDto);
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteProduct(@PathVariable Long id) {
-        try {
-            productService.deleteProduct(id);
-            return ResponseEntity.noContent().build();
-        } catch (RuntimeException e) {
-            return ResponseEntity.notFound().build();
-        }
+    public ResponseEntity<Void> deleteProduct(@PathVariable("id") Long id) {
+        log.info("Received request to delete product with id: {}", id);
+        productService.deleteProduct(id);
+        log.info("Deleted product with id: {}", id);
+        return ResponseEntity.noContent().build();
     }
 
     private ProductDto convertToDTO(Product product) {
