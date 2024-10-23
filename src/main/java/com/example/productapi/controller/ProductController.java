@@ -1,6 +1,7 @@
 package com.example.productapi.controller;
 
 import com.example.productapi.dto.ProductDto;
+import com.example.productapi.mapper.ProductMapper;
 import com.example.productapi.model.Product;
 import com.example.productapi.service.ProductService;
 import jakarta.validation.Valid;
@@ -20,12 +21,13 @@ import java.util.stream.Collectors;
 @Slf4j
 public class ProductController {
     private final ProductService productService;
+    private final ProductMapper productMapper;
 
     @GetMapping
     public ResponseEntity<List<ProductDto>> getAllProducts() {
         log.info("Received request to get all products");
         List<ProductDto> products = productService.getAllProducts().stream()
-                .map(this::convertToDTO)
+                .map(productMapper::productToProductDto)
                 .collect(Collectors.toList());
         log.info("Returning {} products", products.size());
         return ResponseEntity.ok(products);
@@ -35,7 +37,7 @@ public class ProductController {
     public ResponseEntity<ProductDto> getProductById(@PathVariable("id") Long id) {
         log.info("Received request to get product with id: {}", id);
         Product product = productService.getProductById(id);
-        ProductDto productDto = convertToDTO(product);
+        ProductDto productDto = productMapper.productToProductDto(product);
         log.info("Returning product with id: {}", id);
         return ResponseEntity.ok(productDto);
     }
@@ -43,7 +45,7 @@ public class ProductController {
     @PostMapping
     public ResponseEntity<Product> createProduct(@Valid @RequestBody ProductDto productDTO) {
         log.info("Received request to create new product: {}", productDTO.getName());
-        Product product = convertToEntity(productDTO);
+        Product product = productMapper.productDtoToProduct(productDTO);
         Product createdProduct = productService.createProduct(product);
         log.info("Created new product with id: {}", createdProduct.getId());
         return ResponseEntity.status(HttpStatus.CREATED).body(createdProduct);
@@ -52,9 +54,9 @@ public class ProductController {
     @PutMapping("/{id}")
     public ResponseEntity<ProductDto> updateProduct(@PathVariable("id") Long id, @Valid @RequestBody ProductDto productDTO) {
         log.info("Received request to update product with id: {}", id);
-        Product product = convertToEntity(productDTO);
+        Product product = productMapper.productDtoToProduct(productDTO);
         Product updatedProduct = productService.updateProduct(id, product);
-        ProductDto updatedProductDto = convertToDTO(updatedProduct);
+        ProductDto updatedProductDto = productMapper.productToProductDto(updatedProduct);
         log.info("Updated product with id: {}", id);
         return ResponseEntity.ok(updatedProductDto);
     }
@@ -65,21 +67,5 @@ public class ProductController {
         productService.deleteProduct(id);
         log.info("Deleted product with id: {}", id);
         return ResponseEntity.noContent().build();
-    }
-
-    private ProductDto convertToDTO(Product product) {
-        ProductDto dto = new ProductDto();
-        dto.setName(product.getName());
-        dto.setDescription(product.getDescription());
-        dto.setPrice(product.getPrice());
-        return dto;
-    }
-
-    private Product convertToEntity(ProductDto dto) {
-        Product product = new Product();
-        product.setName(dto.getName());
-        product.setDescription(dto.getDescription());
-        product.setPrice(dto.getPrice());
-        return product;
     }
 }
