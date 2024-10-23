@@ -9,8 +9,11 @@ import lombok.Setter;
 
 import java.math.BigDecimal;
 
+import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlRootElement;
+
 @Getter
 @Setter
+@JacksonXmlRootElement(localName = "ProductDetails")
 public class ProductDto {
     @NotBlank(message = "Name cannot be empty")
     private String name;
