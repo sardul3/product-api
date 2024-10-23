@@ -1,18 +1,23 @@
 package com.example.productapi.controller;
 
 import com.example.productapi.dto.ProductDto;
+import com.example.productapi.mapper.ProductMapper;
+import com.example.productapi.mapper.ProductModelAssembler;
 import com.example.productapi.model.Product;
 import com.example.productapi.service.ProductService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-import org.springframework.http.HttpStatus;
+import org.springframework.hateoas.CollectionModel;
+import org.springframework.hateoas.EntityModel;
+import org.springframework.hateoas.IanaLinkRelations;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.stream.Collectors;
+
 
 @RestController
 @RequestMapping("/api/products")
@@ -20,66 +25,54 @@ import java.util.stream.Collectors;
 @Slf4j
 public class ProductController {
     private final ProductService productService;
+    private final ProductMapper productMapper;
+    private final ProductModelAssembler productModelAssembler;
 
-    @GetMapping
-    public ResponseEntity<List<ProductDto>> getAllProducts() {
+    @GetMapping(produces = { MediaType.APPLICATION_JSON_VALUE, MediaType.APPLICATION_XML_VALUE })
+    public ResponseEntity<CollectionModel<EntityModel<Product>>> getAllProducts() {
         log.info("Received request to get all products");
-        List<ProductDto> products = productService.getAllProducts().stream()
-                .map(this::convertToDTO)
-                .collect(Collectors.toList());
+        List<Product> products = productService.getAllProducts();
+        CollectionModel<EntityModel<Product>> collectionModel = productModelAssembler.toCollectionModel(products);
         log.info("Returning {} products", products.size());
-        return ResponseEntity.ok(products);
+        return ResponseEntity.ok(collectionModel);
     }
 
-    @GetMapping("/{id}")
-    public ResponseEntity<ProductDto> getProductById(@PathVariable("id") Long id) {
+    @GetMapping(value = "/{id}", produces = { MediaType.APPLICATION_JSON_VALUE, MediaType.APPLICATION_XML_VALUE })
+    public ResponseEntity<EntityModel<Product>> getProductById(@PathVariable("id") Long id) {
         log.info("Received request to get product with id: {}", id);
         Product product = productService.getProductById(id);
-        ProductDto productDto = convertToDTO(product);
+        EntityModel<Product> productModel = productModelAssembler.toModel(product);
         log.info("Returning product with id: {}", id);
-        return ResponseEntity.ok(productDto);
+        return ResponseEntity.ok(productModel);
     }
 
     @PostMapping
-    public ResponseEntity<Product> createProduct(@Valid @RequestBody ProductDto productDTO) {
+    public ResponseEntity<EntityModel<Product>> createProduct(@Valid @RequestBody ProductDto productDTO) {
         log.info("Received request to create new product: {}", productDTO.getName());
-        Product product = convertToEntity(productDTO);
+        Product product = productMapper.productDtoToProduct(productDTO);
         Product createdProduct = productService.createProduct(product);
+        EntityModel<Product> productModel = productModelAssembler.toModel(createdProduct);
         log.info("Created new product with id: {}", createdProduct.getId());
-        return ResponseEntity.status(HttpStatus.CREATED).body(createdProduct);
+        return ResponseEntity
+                .created(productModel.getRequiredLink(IanaLinkRelations.SELF).toUri())
+                .body(productModel);
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<ProductDto> updateProduct(@PathVariable("id") Long id, @Valid @RequestBody ProductDto productDTO) {
+    public ResponseEntity<EntityModel<Product>> updateProduct(@PathVariable("id") Long id, @Valid @RequestBody ProductDto productDTO) {
         log.info("Received request to update product with id: {}", id);
-        Product product = convertToEntity(productDTO);
+        Product product = productMapper.productDtoToProduct(productDTO);
         Product updatedProduct = productService.updateProduct(id, product);
-        ProductDto updatedProductDto = convertToDTO(updatedProduct);
+        EntityModel<Product> productModel = productModelAssembler.toModel(updatedProduct);
         log.info("Updated product with id: {}", id);
-        return ResponseEntity.ok(updatedProductDto);
+        return ResponseEntity.ok(productModel);
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteProduct(@PathVariable("id") Long id) {
+    public ResponseEntity<?> deleteProduct(@PathVariable("id") Long id) {
         log.info("Received request to delete product with id: {}", id);
         productService.deleteProduct(id);
         log.info("Deleted product with id: {}", id);
         return ResponseEntity.noContent().build();
-    }
-
-    private ProductDto convertToDTO(Product product) {
-        ProductDto dto = new ProductDto();
-        dto.setName(product.getName());
-        dto.setDescription(product.getDescription());
-        dto.setPrice(product.getPrice());
-        return dto;
-    }
-
-    private Product convertToEntity(ProductDto dto) {
-        Product product = new Product();
-        product.setName(dto.getName());
-        product.setDescription(dto.getDescription());
-        product.setPrice(dto.getPrice());
-        return product;
     }
 }
