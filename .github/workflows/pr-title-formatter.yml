@@ -3,7 +3,12 @@ name: PR Title Formatter
 on:
   pull_request:
     types: [opened, edited, synchronize, reopened]
-
+    
+# Add permissions block
+permissions:
+  pull-requests: write
+  issues: write
+  
 jobs:
   format-pr-title:
     runs-on: ubuntu-latest
