@@ -4,49 +4,46 @@ on:
   pull_request:
     types: [opened, edited, synchronize, reopened]
 
-# Add permissions block
 permissions:
   pull-requests: write
   issues: write
 
 jobs:
-  format-pr-title:
+  check-pr-title:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      
-      - name: Get PR Information
+      - name: Check and Format PR Title
         id: pr_info
         uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const pr = context.payload.pull_request;
-            const branchName = pr.head.ref;
+            const title = pr.title;
             
-            // Try to extract issue number from branch name (assuming format like "123-feature-name")
-            let issueNumber = branchName.split('-')[0];
-            if (!issueNumber.match(/^\d+$/)) {
-              issueNumber = 'XXXXX';
-            }
+            // Define the expected format pattern
+            const titleRegex = /^Issue #[0-9X]+ \| .+ \| .+$/;
             
-            // Get PR author
-            const author = pr.user.login;
-            
-            // Get current PR title
-            let title = pr.title;
-            
-            // Check if the title is already formatted
-            const titleRegex = /^Issue #\d+ \| .+ \| .+$/;
+            // Only proceed if the title doesn't match the format
             if (!titleRegex.test(title)) {
-              // Remove any existing issue numbers from the title
-              title = title.replace(/^#?\d+\s*[-|]\s*/, '');
+              const branchName = pr.head.ref;
+              
+              // Try to extract issue number from branch name
+              let issueNumber = branchName.split('-')[0];
+              if (!issueNumber.match(/^\d+$/)) {
+                issueNumber = 'XXXXX';
+              }
+              
+              // Get PR author
+              const author = pr.user.login;
+              
+              // Remove any malformed issue numbers or separators from the start
+              let cleanTitle = title.replace(/^(?:Issue #)?(?:\d+|XXXXX)?\s*(?:\||-)?\s*(?:[^|]+\|)?\s*/, '');
               
               // Format the new title
-              const newTitle = `Issue #${issueNumber} | ${author} | ${title}`;
+              const newTitle = `Issue #${issueNumber} | ${author} | ${cleanTitle}`;
               
               try {
-                // Update PR title if it doesn't match the format
                 await github.rest.pulls.update({
                   owner: context.repo.owner,
                   repo: context.repo.repo,
@@ -54,28 +51,23 @@ jobs:
                   title: newTitle
                 });
                 
-                core.setOutput('formatted_title', newTitle);
+                // Post a comment explaining the change
+                const message = `🤖 I've updated your PR title to match the required format:\n\n` +
+                              `Old: "${title}"\n` +
+                              `New: "${newTitle}"\n\n` +
+                              `Required format: Issue #<number> | <author> | <title>`;
+                
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: context.issue.number,
+                  body: message
+                });
+                
+                core.info(`Updated PR title from "${title}" to "${newTitle}"`);
               } catch (error) {
                 core.setFailed(`Failed to update PR title: ${error.message}`);
               }
-            }
-
-      - name: Comment on PR
-        if: steps.pr_info.outputs.formatted_title
-        uses: actions/github-script@v7
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const formattedTitle = steps.pr_info.outputs.formatted_title;
-            const message = `🤖 I've updated your PR title to match the required format:\n\n${formattedTitle}`;
-            
-            try {
-              await github.rest.issues.createComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: context.issue.number,
-                body: message
-              });
-            } catch (error) {
-              core.setFailed(`Failed to create comment: ${error.message}`);
+            } else {
+              core.info('PR title already matches the required format. No changes needed.');
             }
