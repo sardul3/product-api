@@ -3,12 +3,12 @@ name: PR Title Formatter
 on:
   pull_request:
     types: [opened, edited, synchronize, reopened]
-    
+
 # Add permissions block
 permissions:
   pull-requests: write
   issues: write
-  
+
 jobs:
   format-pr-title:
     runs-on: ubuntu-latest
@@ -19,6 +19,7 @@ jobs:
         id: pr_info
         uses: actions/github-script@v7
         with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const pr = context.payload.pull_request;
             const branchName = pr.head.ref;
@@ -44,28 +45,37 @@ jobs:
               // Format the new title
               const newTitle = `Issue #${issueNumber} | ${author} | ${title}`;
               
-              // Update PR title if it doesn't match the format
-              await github.rest.pulls.update({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                pull_number: context.issue.number,
-                title: newTitle
-              });
-              
-              core.setOutput('formatted_title', newTitle);
+              try {
+                // Update PR title if it doesn't match the format
+                await github.rest.pulls.update({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  pull_number: context.issue.number,
+                  title: newTitle
+                });
+                
+                core.setOutput('formatted_title', newTitle);
+              } catch (error) {
+                core.setFailed(`Failed to update PR title: ${error.message}`);
+              }
             }
 
       - name: Comment on PR
         if: steps.pr_info.outputs.formatted_title
         uses: actions/github-script@v7
         with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const formattedTitle = steps.pr_info.outputs.formatted_title;
             const message = `🤖 I've updated your PR title to match the required format:\n\n${formattedTitle}`;
             
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-              body: message
-            });
+            try {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: message
+              });
+            } catch (error) {
+              core.setFailed(`Failed to create comment: ${error.message}`);
+            }
