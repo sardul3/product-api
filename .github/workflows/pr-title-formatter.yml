@@ -1,0 +1,81 @@
+name: PR Title Formatter
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+# Add permissions block
+permissions:
+  pull-requests: write
+  issues: write
+
+jobs:
+  format-pr-title:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Get PR Information
+        id: pr_info
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const pr = context.payload.pull_request;
+            const branchName = pr.head.ref;
+            
+            // Try to extract issue number from branch name (assuming format like "123-feature-name")
+            let issueNumber = branchName.split('-')[0];
+            if (!issueNumber.match(/^\d+$/)) {
+              issueNumber = 'XXXXX';
+            }
+            
+            // Get PR author
+            const author = pr.user.login;
+            
+            // Get current PR title
+            let title = pr.title;
+            
+            // Check if the title is already formatted
+            const titleRegex = /^Issue #\d+ \| .+ \| .+$/;
+            if (!titleRegex.test(title)) {
+              // Remove any existing issue numbers from the title
+              title = title.replace(/^#?\d+\s*[-|]\s*/, '');
+              
+              // Format the new title
+              const newTitle = `Issue #${issueNumber} | ${author} | ${title}`;
+              
+              try {
+                // Update PR title if it doesn't match the format
+                await github.rest.pulls.update({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  pull_number: context.issue.number,
+                  title: newTitle
+                });
+                
+                core.setOutput('formatted_title', newTitle);
+              } catch (error) {
+                core.setFailed(`Failed to update PR title: ${error.message}`);
+              }
+            }
+
+      - name: Comment on PR
+        if: steps.pr_info.outputs.formatted_title
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const formattedTitle = steps.pr_info.outputs.formatted_title;
+            const message = `🤖 I've updated your PR title to match the required format:\n\n${formattedTitle}`;
+            
+            try {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: message
+              });
+            } catch (error) {
+              core.setFailed(`Failed to create comment: ${error.message}`);
+            }
