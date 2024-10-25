@@ -5,6 +5,11 @@ import com.example.productapi.mapper.ProductMapper;
 import com.example.productapi.mapper.ProductModelAssembler;
 import com.example.productapi.model.Product;
 import com.example.productapi.service.ProductService;
+
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -23,6 +28,7 @@ import java.util.List;
 @RequestMapping("/api/products")
 @RequiredArgsConstructor
 @Slf4j
+@Tag(name = "Products", description = "Operations related to products")
 public class ProductController {
     private final ProductService productService;
     private final ProductMapper productMapper;
@@ -38,6 +44,10 @@ public class ProductController {
     }
 
     @GetMapping(value = "/{id}", produces = { MediaType.APPLICATION_JSON_VALUE, MediaType.APPLICATION_XML_VALUE })
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Product retrieved successfully"),
+        @ApiResponse(responseCode = "404", description = "Product not found")
+    })
     public ResponseEntity<EntityModel<Product>> getProductById(@PathVariable("id") Long id) {
         log.info("Received request to get product with id: {}", id);
         Product product = productService.getProductById(id);
@@ -47,6 +57,7 @@ public class ProductController {
     }
 
     @PostMapping
+    @Operation(summary = "Create a new product")
     public ResponseEntity<EntityModel<Product>> createProduct(@Valid @RequestBody ProductDto productDTO) {
         log.info("Received request to create new product: {}", productDTO.getName());
         Product product = productMapper.productDtoToProduct(productDTO);
