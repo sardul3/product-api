@@ -1,6 +1,7 @@
 package com.example.productapi.controller;
 
 import com.example.productapi.dto.ProductDto;
+import com.example.productapi.filtering.FilterCriteria;
 import com.example.productapi.mapper.ProductMapper;
 import com.example.productapi.mapper.ProductModelAssembler;
 import com.example.productapi.model.Product;
@@ -14,14 +15,22 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
+import org.springdoc.core.annotations.ParameterObject;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
+import org.springframework.data.web.PagedResourcesAssembler;
 import org.springframework.hateoas.CollectionModel;
 import org.springframework.hateoas.EntityModel;
 import org.springframework.hateoas.IanaLinkRelations;
+import org.springframework.hateoas.PagedModel;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 
 @RestController
@@ -33,14 +42,21 @@ public class ProductController {
     private final ProductService productService;
     private final ProductMapper productMapper;
     private final ProductModelAssembler productModelAssembler;
+    private final PagedResourcesAssembler<Product> pagedResourcesAssembler;
 
     @GetMapping(produces = { MediaType.APPLICATION_JSON_VALUE, MediaType.APPLICATION_XML_VALUE })
-    public ResponseEntity<CollectionModel<EntityModel<Product>>> getAllProducts() {
+    public ResponseEntity<PagedModel<EntityModel<Product>>> getAllProducts(
+        @RequestParam(required = false) Map<String, String> params,
+        @ParameterObject @PageableDefault(size = 2) Pageable pageable
+    ) {
         log.info("Received request to get all products");
-        List<Product> products = productService.getAllProducts();
+        List<FilterCriteria> filters = parseFilters(params);
+        Page<Product> products = productService.getFilteredProducts(filters, pageable);
+
+        // List<Product> products = productService.getAllProducts();
         CollectionModel<EntityModel<Product>> collectionModel = productModelAssembler.toCollectionModel(products);
-        log.info("Returning {} products", products.size());
-        return ResponseEntity.ok(collectionModel);
+        // log.info("Returning {} products", products.size());
+        return ResponseEntity.ok(pagedResourcesAssembler.toModel(products));
     }
 
     @GetMapping(value = "/{id}", produces = { MediaType.APPLICATION_JSON_VALUE, MediaType.APPLICATION_XML_VALUE })
@@ -85,5 +101,23 @@ public class ProductController {
         productService.deleteProduct(id);
         log.info("Deleted product with id: {}", id);
         return ResponseEntity.noContent().build();
+    }
+
+    private List<FilterCriteria> parseFilters(Map<String, String> params) {
+        List<FilterCriteria> filters = new ArrayList<>();
+        
+        // Parse standard filters
+        if (params.containsKey("name")) {
+            filters.add(new FilterCriteria("name", "like", params.get("name")));
+        }
+        if (params.containsKey("minPrice")) {
+            filters.add(new FilterCriteria("price", "gt", 
+                Double.valueOf(params.get("minPrice"))));
+        }
+        if (params.containsKey("maxPrice")) {
+            filters.add(new FilterCriteria("price", "lt", 
+                Double.valueOf(params.get("maxPrice"))));
+        } 
+        return filters;
     }
 }
