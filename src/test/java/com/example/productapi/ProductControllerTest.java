@@ -19,7 +19,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-
+// SpringBootTest defaults to WebEnvironment.MOCK port mapping
 @SpringBootTest
 @AutoConfigureMockMvc
 class ProductControllerTest {
