@@ -6,6 +6,7 @@ This repository contains the code and documentation for the E-Commerce API Bootc
 
 1. [Milestone 1: API Development with Spring Boot](https://sardul3.com/boot-camp/api-dev-mile1.html)
 2. [Milestone 2: Database Integration and More](https://sardul3.com/boot-camp/api-dev-mile2.html)
+3. [Milelestone 3: Database Integration and More](https://sardul3.com/boot-camp/api-dev-mile3.html)
 
 ## Accessing Milestone Code
 
