@@ -23,15 +23,23 @@ on:
         required: true
         description: 'GitHub token for authentication'
 
+permissions:
+  contents: write
+  pull-requests: write
+
 jobs:
   check-version:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
 
     steps:
       - uses: actions/checkout@v3
         with:
           fetch-depth: 0
           token: ${{ secrets.token }}
+          ref: ${{ github.event.pull_request.head.ref }}
 
       - name: Set up Python
         if: inputs.auto-update-version
@@ -59,13 +67,31 @@ jobs:
           import sys
 
           def increment_version(version, increment_type):
-              major, minor, patch = map(int, version.split('.'))
-              if increment_type == 'major':
-                  return f"{major + 1}.0.0"
-              elif increment_type == 'minor':
-                  return f"{major}.{minor + 1}.0"
-              else:  # patch
-                  return f"{major}.{minor}.{patch + 1}"
+              # Split version into base version and suffix (if any)
+              base_version = version
+              suffix = ""
+              if "-" in version:
+                  base_version, suffix = version.split("-", 1)
+                  suffix = "-" + suffix
+
+              # Split base version into components
+              try:
+                  version_parts = base_version.split('.')
+                  # Pad with zeros if less than 3 components
+                  while len(version_parts) < 3:
+                      version_parts.append('0')
+          
+                  major, minor, patch = map(int, version_parts)
+          
+                  if increment_type == 'major':
+                      return f"{major + 1}.0.0{suffix}"
+                  elif increment_type == 'minor':
+                      return f"{major}.{minor + 1}.0{suffix}"
+                  else:  # patch
+                      return f"{major}.{minor}.{patch + 1}{suffix}"
+              except ValueError as e:
+                  print(f"Error parsing version: {version}", file=sys.stderr)
+                  raise e
 
           with open(sys.argv[1], 'r') as file:
               content = file.read()
@@ -88,7 +114,7 @@ jobs:
           
           git add ${{ inputs.gradle-file-path }}
           git commit -m "chore: auto-increment version to ${NEW_VERSION}"
-          git push
+          git push origin ${{ github.event.pull_request.head.ref }}
 
       - name: Add PR comment
         if: env.PR_VERSION == env.MAIN_VERSION
