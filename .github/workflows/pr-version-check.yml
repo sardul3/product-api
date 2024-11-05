@@ -10,9 +10,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - uses: sardul3/gradle-version-incrementer@1.0.4
+      - uses: sardul3/gradle-version-incrementer@1.0.5
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           file-path: 'build.gradle'
           increment-type: 'patch'
-          mode: 'update-file'
+          mode: 'comment-only'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
