@@ -7,7 +7,7 @@ on:
         description: 'Path to the gradle file containing version'
         required: false
         type: string
-        default: 'build.gradle'
+        default: 'app/build.gradle'
       auto-update-version:
         description: 'Whether to automatically update version if unchanged'
         required: false
@@ -19,8 +19,9 @@ on:
         type: string
         default: 'patch'
     secrets:
-      GITHUB_TOKEN:
+      token:
         required: true
+        description: 'GitHub token for authentication'
 
 jobs:
   check-version:
@@ -30,7 +31,7 @@ jobs:
       - uses: actions/checkout@v3
         with:
           fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.token }}
 
       - name: Set up Python
         if: inputs.auto-update-version
@@ -93,7 +94,7 @@ jobs:
         if: env.PR_VERSION == env.MAIN_VERSION
         uses: actions/github-script@v6
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          github-token: ${{ secrets.token }}
           script: |
             const autoUpdateMsg = process.env.NEW_VERSION 
               ? `\n\nℹ️ Version has been automatically updated to \`${process.env.NEW_VERSION}\`.`
