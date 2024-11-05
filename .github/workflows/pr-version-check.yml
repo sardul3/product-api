@@ -6,6 +6,10 @@ on:
     branches:
       - main
 
+permissions:
+  contents: write
+  pull-requests: write
+
 jobs:
   version-check:
     uses: ./.github/workflows/version-check-reusable.yml
