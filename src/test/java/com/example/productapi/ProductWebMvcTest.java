@@ -1,23 +1,31 @@
 package com.example.productapi;
 
 import com.example.productapi.controller.ProductController;
+import com.example.productapi.dto.ProductDto;
+import com.example.productapi.exception.DuplicateProductException;
 import com.example.productapi.exception.ProductNotFoundException;
 import com.example.productapi.mapper.ProductMapper;
 import com.example.productapi.mapper.ProductModelAssembler;
+import com.example.productapi.model.Product;
 import com.example.productapi.service.ProductService;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
+import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+
+import java.math.BigDecimal;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /*
@@ -43,6 +51,8 @@ class ProductWebMvcTest {
     @MockBean
     ProductModelAssembler productModelAssembler;
 
+    @Autowired
+    ObjectMapper objectMapper;
 
     @BeforeEach
     void setUp() {
@@ -51,7 +61,6 @@ class ProductWebMvcTest {
     @Test
     void deleteTestWithProductFoundFromService() throws Exception {
 
-        // For void methods, place doThrow first
         doNothing().when(productService).deleteProduct(anyLong());
 
         mockMvc.perform(
@@ -63,6 +72,7 @@ class ProductWebMvcTest {
 
     @Test
     void deleteTestWithProductNotFoundFromService() throws Exception {
+        // For void methods, place doThrow first
         doThrow(ProductNotFoundException.class).when(productService).deleteProduct(anyLong());
 
         mockMvc.perform(

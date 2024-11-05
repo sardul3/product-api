@@ -29,4 +29,10 @@ public class Product {
 
     @Column(nullable = false) // 5️⃣
     private BigDecimal price;
+
+    public Product(String name, String description, BigDecimal price) {
+        this.name = name;
+        this.description = description;
+        this.price = price;
+    }
 }
