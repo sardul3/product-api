@@ -8,7 +8,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: Increment version
-        uses: sardul3/gradle-version-incrementer@v1.0.1
+        uses: sardul3/gradle-version-incrementer@1.0.1
         with:
           file-path: 'build.gradle'
           increment-type: 'patch'
