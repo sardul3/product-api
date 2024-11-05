@@ -1,0 +1,109 @@
+name: Gradle Version Check
+
+on:
+  workflow_call:
+    inputs:
+      gradle-file-path:
+        description: 'Path to the gradle file containing version'
+        required: false
+        type: string
+        default: 'build.gradle'
+      auto-update-version:
+        description: 'Whether to automatically update version if unchanged'
+        required: false
+        type: boolean
+        default: false
+      version-increment:
+        description: 'Which version segment to increment (major, minor, patch)'
+        required: false
+        type: string
+        default: 'patch'
+    secrets:
+      GITHUB_TOKEN:
+        required: true
+
+jobs:
+  check-version:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Python
+        if: inputs.auto-update-version
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+
+      - name: Extract version from PR branch
+        run: |
+          PR_VERSION=$(grep -Po "version\s*=\s*['\"]([^'\"]*)['\"]" ${{ inputs.gradle-file-path }} | cut -d'"' -f2)
+          echo "PR_VERSION=$PR_VERSION" >> $GITHUB_ENV
+
+      - name: Extract version from main branch
+        run: |
+          git checkout origin/main
+          MAIN_VERSION=$(grep -Po "version\s*=\s*['\"]([^'\"]*)['\"]" ${{ inputs.gradle-file-path }} | cut -d'"' -f2)
+          echo "MAIN_VERSION=$MAIN_VERSION" >> $GITHUB_ENV
+          git checkout -
+
+      - name: Auto update version if unchanged
+        if: env.PR_VERSION == env.MAIN_VERSION && inputs.auto-update-version
+        run: |
+          cat > version_update.py << 'EOL'
+          import re
+          import sys
+
+          def increment_version(version, increment_type):
+              major, minor, patch = map(int, version.split('.'))
+              if increment_type == 'major':
+                  return f"{major + 1}.0.0"
+              elif increment_type == 'minor':
+                  return f"{major}.{minor + 1}.0"
+              else:  # patch
+                  return f"{major}.{minor}.{patch + 1}"
+
+          with open(sys.argv[1], 'r') as file:
+              content = file.read()
+
+          version_pattern = r'version\s*=\s*[\'"]([^\'"]*)[\'"]'
+          current_version = re.search(version_pattern, content).group(1)
+          new_version = increment_version(current_version, sys.argv[2])
+          updated_content = re.sub(version_pattern, f'version = "{new_version}"', content)
+
+          with open(sys.argv[1], 'w') as file:
+              file.write(updated_content)
+
+          print(f"NEW_VERSION={new_version}")
+          EOL
+
+          python version_update.py ${{ inputs.gradle-file-path }} ${{ inputs.version-increment }} >> $GITHUB_ENV
+          
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+          
+          git add ${{ inputs.gradle-file-path }}
+          git commit -m "chore: auto-increment version to ${NEW_VERSION}"
+          git push
+
+      - name: Add PR comment
+        if: env.PR_VERSION == env.MAIN_VERSION
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const autoUpdateMsg = process.env.NEW_VERSION 
+              ? `\n\nℹ️ Version has been automatically updated to \`${process.env.NEW_VERSION}\`.`
+              : '\n\nPlease update the version number manually.';
+            
+            github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: '⚠️ **Version Check**\n\n' +
+                    `The app version (\`${process.env.PR_VERSION}\`) was unchanged from the main branch.` +
+                    autoUpdateMsg
+            })
