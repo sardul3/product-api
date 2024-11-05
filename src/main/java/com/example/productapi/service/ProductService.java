@@ -5,10 +5,15 @@ import com.example.productapi.repository.ProductRepository;
 
 
 import com.example.productapi.exception.ProductNotFoundException;
+import com.example.productapi.filtering.FilterCriteria;
+import com.example.productapi.filtering.ProductSpecification;
 import com.example.productapi.exception.DuplicateProductException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -22,6 +27,13 @@ public class ProductService {
     public List<Product> getAllProducts() {
         log.info("Fetching all products");
         return productRepository.findAll();
+    }
+
+    public Page<Product> getFilteredProducts(
+            List<FilterCriteria> filters, 
+            Pageable pageable) {
+        Specification<Product> spec = ProductSpecification.withFilters(filters);
+        return productRepository.findAll(spec, pageable);
     }
 
     public Product getProductById(Long id) {
