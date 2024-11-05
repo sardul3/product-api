@@ -15,6 +15,6 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           file-path: 'build.gradle'
           increment-type: 'patch'
-          mode: 'comment-only'
+          mode: 'update-file'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
