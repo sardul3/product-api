@@ -1,21 +1,14 @@
-name: PR Version Check
-
+name: Increment Version
 on:
   pull_request:
-    types: [opened, synchronize, reopened]
-    branches:
-      - main
-
-permissions:
-  contents: write
-  pull-requests: write
-
+    types: [opened, synchronize]
 jobs:
-  version-check:
-    uses: ./.github/workflows/version-check-reusable.yml
-    with:
-      gradle-file-path: 'build.gradle'  # Can be customized
-      auto-update-version: true             # Enable auto-update
-      version-increment: 'patch'            # Can be 'major', 'minor', or 'patch'
-    secrets:
-      token: ${{ secrets.GITHUB_TOKEN }}
+  increment-version:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Increment version
+        uses: sardul3/gradle-version-incrementer@v1.0.1
+        with:
+          file-path: 'build.gradle'
+          increment-type: 'patch'
